@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Master Agenda & To-Do App</title>
+  <style>
+    :root {
+      --primary-purple: #9333ea;
+      --primary-purple-dark: #7e22ce;
+      --primary-purple-light: #f3e8ff;
+      --text-dark: #3b0764;
+      --text-muted: #7e22ce;
+      --border-pink: #f0abfc;
+      --bg-gradient: linear-gradient(135deg, #fff0f5 0%, #f3e8ff 50%, #fae8ff 100%);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-gradient);
+      color: #0f172a;
+      margin: 0;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .app-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.4);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid #f2d8e7;
+      box-shadow: 0 20px 25px -5px rgba(147, 51, 234, 0.08);
+    }
+
+    /* Header & Navigation */
+    .nav-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      border-bottom: 1px solid #e9d5ff;
+      padding-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .nav-btn {
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--primary-purple-dark);
+      border: 1px solid #e9d5ff;
+      padding: 10px 18px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(4px);
+    }
+
+    .nav-btn:hover {
+      background: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .nav-btn.active {
+      background: var(--primary-purple);
+      color: white;
+      border: none;
+      box-shadow: 0 4px 12px rgba(147, 51, 234, 0.25);
+    }
+
+    .task-counter-badge {
+      font-size: 0.85rem;
+      color: var(--primary-purple-dark);
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1px solid var(--border-pink);
+    }
+
+    /* Joyous Completion Animation */
+    @keyframes joyousComplete {
+      0% { transform: scale(1) rotate(0deg); background: #ffffff; }
+      25% { transform: scale(1.05) rotate(-1deg); background: #dcfce7; border-color: #22c55e; box-shadow: 0 0 20px rgba(34, 197, 94, 0.35); }
+      50% { transform: scale(1.02) rotate(1deg); background: #bbf7d0; }
+      75% { transform: scale(0.98) rotate(0deg); opacity: 0.8; }
+      100% { transform: scale(0.9) translateY(-10px); opacity: 0; height: 0px; margin: 0; padding: 0; }
+    }
+
+    .task-card-joyous {
+      animation: joyousComplete 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      overflow: hidden;
+    }
+
+    /* Task Form Card */
+    .form-card {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 20px;
+      border-radius: 14px;
+      border: 1px solid var(--border-pink);
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(147, 51, 234, 0.05);
+      backdrop-filter: blur(8px);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+    }
+
+    .form-field label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      color: var(--primary-purple-dark);
+    }
+
+    .form-field input, .form-field select, .form-field textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e9d5ff;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+      border-color: var(--primary-purple);
+    }
+
+    /* Category Columns Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+    }
+
+    .category-column {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--border-pink);
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      height: 460px;
+      box-shadow: 0 4px 10px rgba(147, 51, 234, 0.03);
+      backdrop-filter: blur(8px);
+    }
+
+    .column-header {
+      background: #faf5ff;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-pink);
+      border-top-left-radius: 13px;
+      border-top-right-radius: 13px;
+      font-weight: 700;
+      color: var(--text-dark);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1rem;
+    }
+
+    .column-body {
+      padding: 14px;
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+
+    /* Task Card Styles */
+    .task-card {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 5px rgba(147, 51, 234, 0.04);
+    }
+
+    .badge-urgent { background: #fee2e2; color: #991b1b; }
+    .badge-high { background: #ffedd5; color: #9a3412; }
+    .badge-medium { background: #f3e8ff; color: #6b21a8; }
+    .badge-low { background: #f1f5f9; color: #475569; }
+
+    /* Calendar Grid View */
+    .calendar-container {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 24px;
+      border-radius: 14px;
+      border: 1px solid var(--border-pink);
+      box-shadow: 0 4px 10px rgba(147, 51, 234, 0.03);
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      border-top: 1px solid var(--border-pink);
+      border-left: 1px solid var(--border-pink);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .calendar-header-day {
+      background: #faf5ff;
+      padding: 10px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.75rem;
+      color: var(--primary-purple-dark);
+      border-bottom: 1px solid var(--border-pink);
+      text-transform: uppercase;
+    }
+
+    .calendar-day-cell {
+      background: white;
+      min-height: 95px;
+      padding: 8px;
+      border-bottom: 1px solid var(--border-pink);
+      border-right: 1px solid var(--border-pink);
+      box-sizing: border-box;
+      vertical-align: top;
+      transition: all 0.2s ease;
+    }
+
+    .calendar-day-cell.is-today {
+      background: #fdf4ff !important;
+      border: 2px solid #9333ea !important;
+      position: relative;
+    }
+
+    /* Modal / Alert Popups */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-card {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      max-width: 450px;
+      width: 90%;
+      border: 2px solid var(--primary-purple);
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Top Nav Tabs -->
+    <div class="nav-header">
+      <div class="nav-tabs">
+        <button onclick="app.switchView('dashboard')" id="nav-dashboard" class="nav-btn active">📊 Dashboard</button>
+        <button onclick="app.switchView('EHL')" id="nav-EHL" class="nav-btn">🎓 EHL</button>
+        <button onclick="app.switchView('3J')" id="nav-3J" class="nav-btn">⚜️ 3J</button>
+        <button onclick="app.switchView('Personal')" id="nav-Personal" class="nav-btn">🏡 Personal</button>
+        <button onclick="app.switchView('Lych')" id="nav-Lych" class="nav-btn">🍸 Lych</button>
+        <button onclick="app.switchView('coming-up')" id="nav-coming-up" class="nav-btn">⏰ Coming Up</button>
+        <button onclick="app.switchView('calendar')" id="nav-calendar" class="nav-btn">📅 Calendar</button>
+        <button onclick="app.switchView('completed')" id="nav-completed" class="nav-btn">✅ Completed</button>
+      </div>
+      <div class="task-counter-badge" id="task-counter">Active: 0 • Completed: 0</div>
+    </div>
+
+    <!-- Main Container -->
+    <div id="view-container"></div>
+  </div>
+
+  <!-- Notification Container for Deadline Popups -->
+  <div id="modal-container"></div>
+
+  <script>
+    class AgendaApp {
+      constructor() {
+        this.currentView = 'dashboard';
+        this.editingId = null;
+        this.calendarMode = 'month';
+        this.calendarDate = new Date();
+        this.tasks = JSON.parse(localStorage.getItem('agenda_tasks')) || [
+          { id: 1, title: 'Submit Thesis Proposal', category: 'EHL', subcategory: 'Academics', importance: 'High', deadline: this.getRelativeDate(2), desc: 'Check off task to see animation!', attachment: 'proposal.pdf', completed: false, completedAt: null },
+          { id: 2, title: 'Quarterly Expense Report', category: '3J', subcategory: 'Finance', importance: 'Urgent', deadline: this.getRelativeDate(-1), desc: 'Overdue task example.', attachment: '', completed: false, completedAt: null },
+          { id: 3, title: 'Client Pitch Call', category: 'Lych', subcategory: 'Sales', importance: 'Medium', deadline: this.getRelativeDate(0), desc: 'Due today example.', attachment: '', completed: false, completedAt: null }
+        ];
+
+        this.init();
+      }
+
+      init() {
+        this.checkDeadlineReminders();
+        this.render();
+      }
+
+      saveState() {
+        localStorage.setItem('agenda_tasks', JSON.stringify(this.tasks));
+        this.render();
+      }
+
+      getRelativeDate(daysOffset) {
+        const d = new Date();
+        d.setDate(d.getDate() + daysOffset);
+        return d.toISOString().split('T')[0];
+      }
+
+      formatDate(dateStr) {
+        if (!dateStr) return 'No deadline';
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+          return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        }
+        return dateStr;
+      }
+
+      checkDeadlineReminders() {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        const notifications = [];
+
+        this.tasks.filter(t => !t.completed && t.deadline).forEach(t => {
+          const deadline = new Date(t.deadline);
+          deadline.setHours(0,0,0,0);
+
+          const diffDays = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+          const formatted = this.formatDate(t.deadline);
+
+          if (diffDays === 7) {
+            notifications.push(`🔔 <b>${t.title}</b> is due in <b>1 week</b> (${formatted})`);
+          } else if (diffDays === 3) {
+            notifications.push(`⚠️ <b>${t.title}</b> is due in <b>3 days</b> (${formatted})`);
+          } else if (diffDays === 1) {
+            notifications.push(`🚨 <b>${t.title}</b> is due <b>tomorrow</b> (${formatted})`);
+          } else if (diffDays === 0) {
+            notifications.push(`🔥 <b>${t.title}</b> is due <b>TODAY!</b>`);
+          }
+        });
+
+        if (notifications.length > 0) {
+          this.showModalPopup(notifications);
+        }
+      }
+
+      showModalPopup(messages) {
+        const container = document.getElementById('modal-container');
+        container.innerHTML = `
+          <div class="modal-overlay">
+            <div class="modal-card">
+              <h3 style="margin-top:0; color: #9333ea;">⏰ Task Reminder Alert</h3>
+              <ul style="padding-left: 20px; line-height: 1.6; color: #3b0764;">
+                ${messages.map(m => `<li style="margin-bottom: 8px;">${m}</li>`).join('')}
+              </ul>
+              <button onclick="document.getElementById('modal-container').innerHTML=''" style="background: #9333ea; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 8px; cursor: pointer; float: right;">Got It</button>
+            </div>
+          </div>
+        `;
+      }
+
+      switchView(viewName) {
+        this.currentView = viewName;
+        this.editingId = null;
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.id === `nav-${viewName}`);
+        });
+        this.render();
+      }
+
+      render() {
+        const container = document.getElementById('view-container');
+        const activeCount = this.tasks.filter(t => !t.completed).length;
+        const completedCount = this.tasks.filter(t => t.completed).length;
+        document.getElementById('task-counter').textContent = `Active: ${activeCount} • Completed: ${completedCount}`;
+
+        if (this.currentView === 'dashboard') {
+          container.innerHTML = this.getDashboardHTML();
+        } else if (['EHL', '3J', 'Personal', 'Lych'].includes(this.currentView)) {
+          container.innerHTML = this.getCategoryPageHTML(this.currentView);
+        } else if (this.currentView === 'coming-up') {
+          container.innerHTML = this.getComingUpHTML();
+        } else if (this.currentView === 'calendar') {
+          container.innerHTML = this.getCalendarHTML();
+        } else if (this.currentView === 'completed') {
+          container.innerHTML = this.getCompletedPageHTML();
+        }
+      }
+
+      getFormHTML(task = null) {
+        const isEdit = task !== null;
+        return `
+          <div class="form-card">
+            <h3 style="margin-top:0; margin-bottom: 16px; color: #581c87; font-size: 1.05rem;">
+              ${isEdit ? '✏️ Edit Task #' + task.id : '➕ Add New Task'}
+            </h3>
+            <form id="task-form" class="form-grid" onsubmit="event.preventDefault(); app.saveTask(${isEdit ? task.id : 'null'});">
+              <div class="form-field">
+                <label>Title *</label>
+                <input type="text" id="task-title" required value="${isEdit ? task.title : ''}" placeholder="e.g., Project Proposal">
+              </div>
+              <div class="form-field">
+                <label>Major Category *</label>
+                <select id="task-category">
+                  <option value="EHL" ${isEdit && task.category === 'EHL' ? 'selected' : ''}>EHL</option>
+                  <option value="3J" ${isEdit && task.category === '3J' ? 'selected' : ''}>⚜️ 3J</option>
+                  <option value="Personal" ${isEdit && task.category === 'Personal' ? 'selected' : ''}>Personal</option>
+                  <option value="Lych" ${isEdit && task.category === 'Lych' ? 'selected' : ''}>🍸 Lych</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>Sub-Category</label>
+                <input type="text" id="task-subcategory" value="${isEdit ? task.subcategory : ''}" placeholder="e.g., Marketing, Finance">
+              </div>
+              <div class="form-field">
+                <label>Importance</label>
+                <select id="task-importance">
+                  <option value="Low" ${isEdit && task.importance === 'Low' ? 'selected' : ''}>Low</option>
+                  <option value="Medium" ${isEdit && task.importance === 'Medium' ? 'selected' : ''}>Medium</option>
+                  <option value="High" ${isEdit && task.importance === 'High' ? 'selected' : ''}>High</option>
+                  <option value="Urgent" ${isEdit && task.importance === 'Urgent' ? 'selected' : ''}>Urgent</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>Deadline</label>
+                <input type="date" id="task-deadline" value="${isEdit ? task.deadline : ''}">
+              </div>
+              <div class="form-field">
+                <label>Attachment</label>
+                <input type="file" id="task-file">
+                ${isEdit && task.attachment ? `<span style="font-size:0.75rem; color:#9333ea; font-weight:bold;">Current: ${task.attachment}</span>` : ''}
+              </div>
+              <div class="form-field" style="grid-column: 1 / -1;">
+                <label>Description</label>
+                <textarea id="task-desc" placeholder="Add details, links, or notes..." style="height: 60px;">${isEdit ? task.desc : ''}</textarea>
+              </div>
+              <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px;">
+                ${isEdit ? `<button type="button" onclick="app.cancelEdit()" style="background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; padding: 10px 20px; font-weight: 600; border-radius: 8px; cursor: pointer;">Cancel</button>` : ''}
+                <button type="submit" style="background: #9333ea; color: white; border: none; padding: 10px 24px; font-weight: 600; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 4px rgba(147, 51, 234, 0.25);">${isEdit ? 'Update Task' : 'Add Task'}</button>
+              </div>
+            </form>
+          </div>
+        `;
+      }
+
+      getDashboardHTML() {
+        return `
+          ${this.editingId ? this.getFormHTML(this.tasks.find(t => t.id === this.editingId)) : this.getFormHTML()}
+          <div class="dashboard-grid">
+            ${['EHL', '3J', 'Personal', 'Lych'].map(cat => this.renderCategoryColumn(cat)).join('')}
+          </div>
+        `;
+      }
+
+      renderCategoryColumn(cat) {
+        const catTasks = this.tasks
+          .filter(t => t.category === cat && !t.completed)
+          .sort((a, b) => {
+            if (!a.deadline) return 1;
+            if (!b.deadline) return -1;
+            return new Date(a.deadline) - new Date(b.deadline);
+          });
+
+        const catLabel = cat === 'EHL' ? '🎓 EHL' : cat === '3J' ? '⚜️ 3J' : cat === 'Personal' ? '🏡 Personal' : '🍸 Lych';
+
+        return `
+          <div class="category-column">
+            <div class="column-header">
+              <span>${catLabel}</span>
+              <span style="background: #f3e8ff; color: #7e22ce; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem;">${catTasks.length}</span>
+            </div>
+            <div class="column-body">
+              ${catTasks.length === 0 ? `<p style="color: #a855f7; text-align: center; margin-top: 50px;">No active tasks.</p>` : catTasks.map(t => this.renderTaskCard(t)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      renderTaskCard(t) {
+        const badgeClass = `badge-${t.importance.toLowerCase()}`;
+        let cardBg = '#ffffff';
+        let borderStyle = '1px solid #f0abfc';
+        let statusBadge = '';
+
+        if (!t.completed && t.deadline) {
+          const today = new Date();
+          today.setHours(0,0,0,0);
+          const deadlineDate = new Date(t.deadline);
+          deadlineDate.setHours(0,0,0,0);
+
+          const diffDays = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24));
+
+          if (diffDays < 0) {
+            borderStyle = '2px solid #ef4444';
+            statusBadge = '<span style="color: #ef4444; font-weight: 700; font-size: 0.7rem; margin-left: 6px;">OVERDUE</span>';
+          } else if (diffDays === 0) {
+            cardBg = '#f0fdf4';
+            borderStyle = '2px solid #22c55e';
+            statusBadge = '<span style="color: #16a34a; font-weight: 700; font-size: 0.7rem; margin-left: 6px;">DUE TODAY</span>';
+          } else if (diffDays <= 3) {
+            borderStyle = '2px solid #f59e0b';
+            statusBadge = '<span style="color: #d97706; font-weight: 700; font-size: 0.7rem; margin-left: 6px;">DUE SOON</span>';
+          }
+        }
+
+        return `
+          <div id="task-card-${t.id}" class="task-card" style="background: ${cardBg}; border: ${borderStyle};">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="app.animateAndToggle(${t.id})" style="cursor: pointer; width: 16px; height: 16px; accent-color: #9333ea;">
+                <strong style="color: #3b0764; font-weight: 600; ${t.completed ? 'text-decoration: line-through;' : ''}">${t.title}</strong>
+                ${statusBadge}
+              </div>
+              <span class="${badgeClass}" style="font-size: 0.65rem; padding: 2px 8px; border-radius: 12px; font-weight: 700;">${t.importance}</span>
+            </div>
+            ${t.subcategory ? `<div style="font-size: 0.725rem; color: #7e22ce; font-weight: 600; margin-left: 24px;">📁 ${t.subcategory}</div>` : ''}
+            ${t.desc ? `<p style="margin: 6px 0 6px 24px; color: #581c87; font-size: 0.8rem; line-height: 1.4;">${t.desc}</p>` : ''}
+            ${t.attachment ? `<div style="margin: 4px 0 4px 24px; font-size: 0.75rem; color: #9333ea; font-weight: 600;">📎 ${t.attachment}</div>` : ''}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 0.75rem; color: #7e22ce; padding-left: 24px; border-top: 1px dashed #fae8ff; padding-top: 6px;">
+              <span>📅 ${this.formatDate(t.deadline)}</span>
+              <div>
+                ${!t.completed ? `<button onclick="app.startEdit(${t.id})" style="background: none; border: none; color: #9333ea; cursor: pointer; font-size: 0.75rem; font-weight: 600; margin-right: 8px;">Edit</button>` : ''}
+                <button onclick="app.deleteTask(${t.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.75rem; font-weight: 600;">Delete</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      getCategoryPageHTML(catName) {
+        const catTasks = this.tasks
+          .filter(t => t.category === catName && !t.completed)
+          .sort((a, b) => {
+            if (!a.deadline) return 1;
+            if (!b.deadline) return -1;
+            return new Date(a.deadline) - new Date(b.deadline);
+          });
+
+        const catLabel = catName === 'EHL' ? '🎓 EHL' : catName === '3J' ? '⚜️ 3J' : catName === 'Personal' ? '🏡 Personal' : '🍸 Lych';
+
+        return `
+          <div style="background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 14px; border: 1px solid var(--border-pink);">
+            <h2 style="margin-top: 0; color: #3b0764;">${catLabel} Active Tasks</h2>
+            <p style="color: #7e22ce; font-size: 0.875rem; margin-bottom: 20px;">Affiliated tasks sorted chronologically by nearest deadline.</p>
+            ${catTasks.length === 0 ? `<p style="color: #a855f7; text-align: center; padding: 50px;">No active tasks found in this category.</p>` : catTasks.map(t => this.renderTaskCard(t)).join('')}
+          </div>
+        `;
+      }
+
+      getCompletedPageHTML() {
+        const completedTasks = this.tasks
+          .filter(t => t.completed)
+          .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+
+        return `
+          <div style="background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 14px; border: 1px solid var(--border-pink);">
+            <h2 style="margin-top: 0; color: #3b0764;">🎉 Completed Tasks Archive</h2>
+            <p style="color: #7e22ce; font-size: 0.875rem; margin-bottom: 20px;">Finished tasks ordered by most recently completed.</p>
+            ${completedTasks.length === 0 ? `<p style="color: #a855f7; text-align: center; padding: 50px;">No completed tasks yet. Go check some off!</p>` : completedTasks.map(t => `
+              <div style="display: flex; justify-content: space-between; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 14px; border-radius: 10px; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <input type="checkbox" checked onchange="app.toggleComplete(${t.id})" style="cursor: pointer; width: 16px; height: 16px; accent-color: #16a34a;">
+                  <div>
+                    <span style="font-size: 0.7rem; background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 12px; font-weight: 700; margin-right: 8px;">${t.category}</span>
+                    <strong style="text-decoration: line-through; color: #15803d;">${t.title}</strong>${t.subcategory ? `<span style="color: #64748b; font-size: 0.8rem; margin-left: 6px;">(${t.subcategory})</span>` : ''}
+                  </div>
+                </div>
+                <div style="font-size: 0.75rem; color: #16a34a; text-align: right;">
+                  <span>Completed: ${t.completedAt ? new Date(t.completedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Recently'}</span>
+                  <button onclick="app.deleteTask(${t.id})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.75rem; font-weight: 600; margin-left: 12px;">Delete</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      getComingUpHTML() {
+        const sortedTasks = [...this.tasks]
+          .filter(t => !t.completed && t.deadline)
+          .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        return `
+          <div style="background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 14px; border: 1px solid var(--border-pink);">
+            <h2 style="margin-top: 0; color: #3b0764;">⏰ Coming Up Agenda</h2>
+            <p style="color: #7e22ce; font-size: 0.875rem; margin-bottom: 20px;">Upcoming active tasks ordered chronologically.</p>
+            ${sortedTasks.length === 0 ? `<p style="color: #a855f7; text-align: center; padding: 50px;">No upcoming deadlines scheduled.</p>` : sortedTasks.map(t => {
+              const isOverdue = t.deadline < todayStr;
+              const isToday = t.deadline === todayStr;
+
+              let cardBg = '#faf5ff';
+              let cardBorder = '1px solid var(--border-pink)';
+              let dateBg = '#fffbeb';
+              let dateColor = '#d97706';
+              let dateBorder = '1px solid #fef3c7';
+              let statusLabel = '';
+
+              if (isOverdue) {
+                cardBg = '#fee2e2';
+                cardBorder = '1px solid #fecaca';
+                dateBg = '#fef2f2';
+                dateColor = '#dc2626';
+                dateBorder = '1px solid #fca5a5';
+                statusLabel = '<span style="color: #dc2626; font-weight: 700; font-size: 0.7rem; margin-left: 8px;">OVERDUE</span>';
+              } else if (isToday) {
+                cardBg = '#f0fdf4';
+                cardBorder = '1px solid #bbf7d0';
+                dateBg = '#dcfce7';
+                dateColor = '#15803d';
+                dateBorder = '1px solid #86efac';
+                statusLabel = '<span style="color: #16a34a; font-weight: 700; font-size: 0.7rem; margin-left: 8px;">DUE TODAY</span>';
+              }
+
+              return `
+                <div style="display: flex; justify-content: space-between; align-items: center; background: ${cardBg}; border:${cardBorder}; padding: 14px; border-radius: 10px; margin-bottom: 10px;">
+                  <div>
+                    <span style="font-size: 0.7rem; background: ${isOverdue ? '#fee2e2' : isToday ? '#dcfce7' : '#f3e8ff'}; color: ${isOverdue ? '#991b1b' : isToday ? '#166534' : '#7e22ce'}; padding: 3px 8px; border-radius: 12px; font-weight: 700; margin-right: 10px;">${t.category}</span>
+                    <strong style="color: #3b0764;">${t.title}</strong>${t.subcategory ? `<span style="color: #7e22ce; font-size: 0.8rem; margin-left: 6px;">(${t.subcategory})</span>` : ''}
+                    ${statusLabel}
+                  </div>
+                  <div style="font-weight: 700; color: ${dateColor}; font-size: 0.875rem; background: ${dateBg}; padding: 4px 10px; border-radius: 6px; border:${dateBorder};">
+                    📅 ${this.formatDate(t.deadline)}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      getCalendarHTML() {
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const year = this.calendarDate.getFullYear();
+        const month = this.calendarDate.getMonth();
+
+        const todayObj = new Date();
+        const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+
+        let gridHTML = '';
+        let headerTitle = '';
+
+        if (this.calendarMode === 'month') {
+          headerTitle = `${monthNames[month]} ${year}`;
+          
+          // Get Monday-start offset for the first day of the month
+          const firstDayOfMonthObj = new Date(year, month, 1);
+          let firstDayOfWeek = firstDayOfMonthObj.getDay(); 
+          let distanceToMon = (firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1);
+
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+          const dayHeaders = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+          dayHeaders.forEach(d => {
+            gridHTML += `<div class="calendar-header-day">${d}</div>`;
+          });
+
+          for (let i = 0; i < distanceToMon; i++) {
+            gridHTML += `<div class="calendar-day-cell" style="background: rgba(250, 245, 255, 0.4);"></div>`;
+          }
+
+          for (let day = 1; day <= daysInMonth; day++) {
+            const formattedDay = String(day).padStart(2, '0');
+            const formattedMonth = String(month + 1).padStart(2, '0');
+            const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
+            const isToday = (dateStr === todayStr);
+            const dayTasks = this.tasks.filter(t => t.deadline === dateStr && !t.completed);
+
+            gridHTML += `
+              <div class="calendar-day-cell ${isToday ? 'is-today' : ''}">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 0.75rem; font-weight: 700; color: ${isToday ? '#9333ea' : '#6b21a8'};">${day}</span>
+                  ${isToday ? '<span style="font-size: 0.55rem; background: #9333ea; color: white; padding: 1px 4px; border-radius: 4px; font-weight: 700;">TODAY</span>' : ''}
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  ${dayTasks.map(t => `
+                    <div style="background: #f3e8ff; color: #6b21a8; font-size: 0.65rem; padding: 3px 6px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700;" title="${t.title}">• ${t.title}</div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          }
+        } else {
+          // Week View starting strictly on MONDAY
+          const curr = new Date(this.calendarDate);
+          const dayOfWeek = curr.getDay(); 
+          const distanceToMon = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+          const monday = new Date(curr.setDate(curr.getDate() + distanceToMon));
+
+          headerTitle = `Week of ${monthNames[monday.getMonth()]} ${monday.getDate()}, ${monday.getFullYear()}`;
+
+          const dayHeaders = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+          dayHeaders.forEach(d => {
+            gridHTML += `<div class="calendar-header-day">${d}</div>`;
+          });
+
+          for (let i = 0; i < 7; i++) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const dateStr = `${yyyy}-${mm}-${dd}`;
+            const isToday = (dateStr === todayStr);
+            const dayTasks = this.tasks.filter(t => t.deadline === dateStr && !t.completed);
+
+            gridHTML += `
+              <div class="calendar-day-cell ${isToday ? 'is-today' : ''}" style="min-height: 180px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 700; color: ${isToday ? '#9333ea' : '#6b21a8'}; margin-bottom: 10px; border-bottom: 1px solid #fae8ff; padding-bottom: 4px;">
+                  <span>${d.getDate()} ${monthNames[d.getMonth()].slice(0,3)}</span>
+                  ${isToday ? '<span style="font-size: 0.6rem; background: #9333ea; color: white; padding: 2px 5px; border-radius: 4px;">TODAY</span>' : ''}
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  ${dayTasks.map(t => `
+                    <div style="background: #f3e8ff; color: #6b21a8; font-size: 0.7rem; padding: 5px 8px; border-radius: 6px; font-weight: 700;">${t.title}</div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          }
+        }
+
+        return `
+          <div class="calendar-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+              <h2 style="margin: 0; color: #3b0764;">📅 ${headerTitle}</h2>
+              <div style="display: flex; gap: 12px; align-items: center;">
+                <div style="display: flex; background: #faf5ff; border-radius: 8px; padding: 3px; border: 1px solid #e9d5ff;">
+                  <button onclick="app.setCalendarMode('month')" style="background: ${this.calendarMode === 'month' ? '#9333ea' : 'transparent'}; color: ${this.calendarMode === 'month' ? 'white' : '#6b21a8'}; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.8rem;">Month</button>
+                  <button onclick="app.setCalendarMode('week')" style="background: ${this.calendarMode === 'week' ? '#9333ea' : 'transparent'}; color: ${this.calendarMode === 'week' ? 'white' : '#6b21a8'}; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.8rem;">Week</button>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button onclick="app.navigateCalendar(-1)" style="background: #ffffff; border: 1px solid #e9d5ff; color: #6b21a8; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700;">&larr;</button>
+                  <button onclick="app.navigateCalendar(1)" style="background: #ffffff; border: 1px solid #e9d5ff; color: #6b21a8; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700;">&rarr;</button>
+                </div>
+              </div>
+            </div>
+            <div class="calendar-grid">
+              ${gridHTML}
+            </div>
+          </div>
+        `;
+      }
+
+      setCalendarMode(mode) {
+        this.calendarMode = mode;
+        this.render();
+      }
+
+      navigateCalendar(direction) {
+        if (this.calendarMode === 'month') {
+          this.calendarDate.setMonth(this.calendarDate.getMonth() + direction);
+        } else {
+          this.calendarDate.setDate(this.calendarDate.getDate() + (direction * 7));
+        }
+        this.render();
+      }
+
+      animateAndToggle(id) {
+        const cardElem = document.getElementById(`task-card-${id}`);
+        if (cardElem) {
+          cardElem.classList.add('task-card-joyous');
+          setTimeout(() => {
+            this.toggleComplete(id);
+          }, 580);
+        } else {
+          this.toggleComplete(id);
+        }
+      }
+
+      toggleComplete(id) {
+        const task = this.tasks.find(t => t.id === id);
+        if (task) {
+          task.completed = !task.completed;
+          task.completedAt = task.completed ? Date.now() : null;
+          this.saveState();
+        }
+      }
+
+      saveTask(id) {
+        const title = document.getElementById('task-title').value.trim();
+        const category = document.getElementById('task-category').value;
+        const subcategory = document.getElementById('task-subcategory').value.trim();
+        const importance = document.getElementById('task-importance').value;
+        const deadline = document.getElementById('task-deadline').value;
+        const desc = document.getElementById('task-desc').value.trim();
+        const fileInput = document.getElementById('task-file');
+        let attachment = '';
+
+        if (fileInput && fileInput.files.length > 0) {
+          attachment = fileInput.files[0].name;
+        } else if (id !== null) {
+          const existing = this.tasks.find(t => t.id === id);
+          if (existing) attachment = existing.attachment;
+        }
+
+        if (!title) return;
+
+        if (id === null) {
+          const newId = this.tasks.length > 0 ? Math.max(...this.tasks.map(t => t.id)) + 1 : 1;
+          this.tasks.push({
+            id: newId,
+            title,
+            category,
+            subcategory,
+            importance,
+            deadline,
+            desc,
+            attachment,
+            completed: false,
+            completedAt: null
+          });
+        } else {
+          const task = this.tasks.find(t => t.id === id);
+          if (task) {
+            task.title = title;
+            task.category = category;
+            task.subcategory = subcategory;
+            task.importance = importance;
+            task.deadline = deadline;
+            task.desc = desc;
+            task.attachment = attachment;
+          }
+          this.editingId = null;
+        }
+
+        this.saveState();
+      }
+
+      startEdit(id) {
+        this.editingId = id;
+        this.render();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      cancelEdit() {
+        this.editingId = null;
+        this.render();
+      }
+
+      deleteTask(id) {
+        if (confirm('Are you sure you want to delete this task?')) {
+          this.tasks = this.tasks.filter(t => t.id !== id);
+          this.saveState();
+        }
+      }
+    }
+
+    const app = new AgendaApp();
+  </script>
+</body>
+</html>
