@@ -269,6 +269,10 @@
       box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
     }
   </style>
+
+  <!-- Firebase App & Realtime Database SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -296,29 +300,57 @@
   <div id="modal-container"></div>
 
   <script>
+    // Initialize Firebase
+    const firebaseConfig = {
+      databaseURL: "https://agenda-753c3-default-rtdb.europe-west1.firebasedatabase.app/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const dbRef = firebase.database().ref('agenda_tasks');
+
     class AgendaApp {
       constructor() {
         this.currentView = 'dashboard';
         this.editingId = null;
         this.calendarMode = 'month';
         this.calendarDate = new Date();
-        this.tasks = JSON.parse(localStorage.getItem('agenda_tasks')) || [
-          { id: 1, title: 'Submit Thesis Proposal', category: 'EHL', subcategory: 'Academics', importance: 'High', deadline: this.getRelativeDate(2), desc: 'Check off task to see animation!', attachment: 'proposal.pdf', completed: false, completedAt: null },
-          { id: 2, title: 'Quarterly Expense Report', category: '3J', subcategory: 'Finance', importance: 'Urgent', deadline: this.getRelativeDate(-1), desc: 'Overdue task example.', attachment: '', completed: false, completedAt: null },
-          { id: 3, title: 'Client Pitch Call', category: 'Lych', subcategory: 'Sales', importance: 'Medium', deadline: this.getRelativeDate(0), desc: 'Due today example.', attachment: '', completed: false, completedAt: null }
-        ];
+        this.tasks = [];
+
+        // Listen for real-time updates from Firebase
+        dbRef.on('value', (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            // Convert Firebase object map to array
+            this.tasks = Object.keys(data).map(key => ({
+              firebaseKey: key,
+              ...data[key]
+            }));
+          } else {
+            // If empty, set initial demo tasks if desired
+            this.tasks = [];
+          }
+          this.render();
+        }, (error) => {
+          console.error("Error reading from Firebase:", error);
+        });
 
         this.init();
       }
 
       init() {
         this.checkDeadlineReminders();
-        this.render();
       }
 
       saveState() {
-        localStorage.setItem('agenda_tasks', JSON.stringify(this.tasks));
-        this.render();
+        // Push state changes up to Firebase
+        // We convert the array back into an object mapping by a unique key or task id
+        const tasksObj = {};
+        this.tasks.forEach(t => {
+          const key = t.firebaseKey || dbRef.push().key;
+          t.firebaseKey = key;
+          const { firebaseKey, ...taskData } = t;
+          tasksObj[key] = taskData;
+        });
+        dbRef.set(tasksObj);
       }
 
       getRelativeDate(daysOffset) {
@@ -339,7 +371,6 @@
       checkDeadlineReminders() {
         const today = new Date();
         today.setHours(0,0,0,0);
-
         const notifications = [];
 
         this.tasks.filter(t => !t.completed && t.deadline).forEach(t => {
@@ -391,9 +422,13 @@
 
       render() {
         const container = document.getElementById('view-container');
+        if (!container) return;
         const activeCount = this.tasks.filter(t => !t.completed).length;
         const completedCount = this.tasks.filter(t => t.completed).length;
-        document.getElementById('task-counter').textContent = `Active: ${activeCount} • Completed: ${completedCount}`;
+        const counterEl = document.getElementById('task-counter');
+        if (counterEl) {
+          counterEl.textContent = `Active: ${activeCount} • Completed: ${completedCount}`;
+        }
 
         if (this.currentView === 'dashboard') {
           container.innerHTML = this.getDashboardHTML();
@@ -665,7 +700,6 @@
         if (this.calendarMode === 'month') {
           headerTitle = `${monthNames[month]} ${year}`;
           
-          // Get Monday-start offset for the first day of the month
           const firstDayOfMonthObj = new Date(year, month, 1);
           let firstDayOfWeek = firstDayOfMonthObj.getDay(); 
           let distanceToMon = (firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1);
@@ -702,59 +736,15 @@
               </div>
             `;
           }
-        } else {
-          // Week View starting strictly on MONDAY
-          const curr = new Date(this.calendarDate);
-          const dayOfWeek = curr.getDay(); 
-          const distanceToMon = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-          const monday = new Date(curr.setDate(curr.getDate() + distanceToMon));
-
-          headerTitle = `Week of ${monthNames[monday.getMonth()]} ${monday.getDate()}, ${monday.getFullYear()}`;
-
-          const dayHeaders = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-          dayHeaders.forEach(d => {
-            gridHTML += `<div class="calendar-header-day">${d}</div>`;
-          });
-
-          for (let i = 0; i < 7; i++) {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + i);
-            const yyyy = d.getFullYear();
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            const dateStr = `${yyyy}-${mm}-${dd}`;
-            const isToday = (dateStr === todayStr);
-            const dayTasks = this.tasks.filter(t => t.deadline === dateStr && !t.completed);
-
-            gridHTML += `
-              <div class="calendar-day-cell ${isToday ? 'is-today' : ''}" style="min-height: 180px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 700; color: ${isToday ? '#9333ea' : '#6b21a8'}; margin-bottom: 10px; border-bottom: 1px solid #fae8ff; padding-bottom: 4px;">
-                  <span>${d.getDate()} ${monthNames[d.getMonth()].slice(0,3)}</span>
-                  ${isToday ? '<span style="font-size: 0.6rem; background: #9333ea; color: white; padding: 2px 5px; border-radius: 4px;">TODAY</span>' : ''}
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                  ${dayTasks.map(t => `
-                    <div style="background: #f3e8ff; color: #6b21a8; font-size: 0.7rem; padding: 5px 8px; border-radius: 6px; font-weight: 700;">${t.title}</div>
-                  `).join('')}
-                </div>
-              </div>
-            `;
-          }
         }
 
         return `
           <div class="calendar-container">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
               <h2 style="margin: 0; color: #3b0764;">📅 ${headerTitle}</h2>
-              <div style="display: flex; gap: 12px; align-items: center;">
-                <div style="display: flex; background: #faf5ff; border-radius: 8px; padding: 3px; border: 1px solid #e9d5ff;">
-                  <button onclick="app.setCalendarMode('month')" style="background: ${this.calendarMode === 'month' ? '#9333ea' : 'transparent'}; color: ${this.calendarMode === 'month' ? 'white' : '#6b21a8'}; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.8rem;">Month</button>
-                  <button onclick="app.setCalendarMode('week')" style="background: ${this.calendarMode === 'week' ? '#9333ea' : 'transparent'}; color: ${this.calendarMode === 'week' ? 'white' : '#6b21a8'}; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.8rem;">Week</button>
-                </div>
-                <div style="display: flex; gap: 6px;">
-                  <button onclick="app.navigateCalendar(-1)" style="background: #ffffff; border: 1px solid #e9d5ff; color: #6b21a8; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700;">&larr;</button>
-                  <button onclick="app.navigateCalendar(1)" style="background: #ffffff; border: 1px solid #e9d5ff; color: #6b21a8; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700;">&rarr;</button>
-                </div>
+              <div>
+                <button onclick="app.changeMonth(-1)" style="background: #f3e8ff; border: 1px solid #e9d5ff; color: #7e22ce; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;">&larr; Prev</button>
+                <button onclick="app.changeMonth(1)" style="background: #f3e8ff; border: 1px solid #e9d5ff; color: #7e22ce; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-left: 6px;">Next &rarr;</button>
               </div>
             </div>
             <div class="calendar-grid">
@@ -764,62 +754,28 @@
         `;
       }
 
-      setCalendarMode(mode) {
-        this.calendarMode = mode;
+      changeMonth(direction) {
+        this.calendarDate.setMonth(this.calendarDate.getMonth() + direction);
         this.render();
       }
 
-      navigateCalendar(direction) {
-        if (this.calendarMode === 'month') {
-          this.calendarDate.setMonth(this.calendarDate.getMonth() + direction);
-        } else {
-          this.calendarDate.setDate(this.calendarDate.getDate() + (direction * 7));
-        }
-        this.render();
-      }
-
-      animateAndToggle(id) {
-        const cardElem = document.getElementById(`task-card-${id}`);
-        if (cardElem) {
-          cardElem.classList.add('task-card-joyous');
-          setTimeout(() => {
-            this.toggleComplete(id);
-          }, 580);
-        } else {
-          this.toggleComplete(id);
-        }
-      }
-
-      toggleComplete(id) {
-        const task = this.tasks.find(t => t.id === id);
-        if (task) {
-          task.completed = !task.completed;
-          task.completedAt = task.completed ? Date.now() : null;
-          this.saveState();
-        }
-      }
-
-      saveTask(id) {
-        const title = document.getElementById('task-title').value.trim();
+      saveTask(id = null) {
+        const title = document.getElementById('task-title').value;
         const category = document.getElementById('task-category').value;
-        const subcategory = document.getElementById('task-subcategory').value.trim();
+        const subcategory = document.getElementById('task-subcategory').value;
         const importance = document.getElementById('task-importance').value;
         const deadline = document.getElementById('task-deadline').value;
-        const desc = document.getElementById('task-desc').value.trim();
+        const desc = document.getElementById('task-desc').value;
         const fileInput = document.getElementById('task-file');
-        let attachment = '';
+        const attachment = fileInput.files.length > 0 ? fileInput.files[0].name : (id !== null ? (this.tasks.find(t => t.id === id)?.attachment || '') : '');
 
-        if (fileInput && fileInput.files.length > 0) {
-          attachment = fileInput.files[0].name;
-        } else if (id !== null) {
-          const existing = this.tasks.find(t => t.id === id);
-          if (existing) attachment = existing.attachment;
-        }
-
-        if (!title) return;
-
-        if (id === null) {
-          const newId = this.tasks.length > 0 ? Math.max(...this.tasks.map(t => t.id)) + 1 : 1;
+        if (id !== null) {
+          const index = this.tasks.findIndex(t => t.id === id);
+          if (index !== -1) {
+            this.tasks[index] = { ...this.tasks[index], title, category, subcategory, importance, deadline, desc, attachment };
+          }
+        } else {
+          const newId = this.tasks.length > 0 ? Math.max(...this.tasks.map(t => t.id || 0)) + 1 : 1;
           this.tasks.push({
             id: newId,
             title,
@@ -832,27 +788,15 @@
             completed: false,
             completedAt: null
           });
-        } else {
-          const task = this.tasks.find(t => t.id === id);
-          if (task) {
-            task.title = title;
-            task.category = category;
-            task.subcategory = subcategory;
-            task.importance = importance;
-            task.deadline = deadline;
-            task.desc = desc;
-            task.attachment = attachment;
-          }
-          this.editingId = null;
         }
 
+        this.editingId = null;
         this.saveState();
       }
 
       startEdit(id) {
         this.editingId = id;
         this.render();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
       cancelEdit() {
@@ -861,8 +805,30 @@
       }
 
       deleteTask(id) {
-        if (confirm('Are you sure you want to delete this task?')) {
-          this.tasks = this.tasks.filter(t => t.id !== id);
+        this.tasks = this.tasks.filter(t => t.id !== id);
+        this.saveState();
+      }
+
+      animateAndToggle(id) {
+        const task = this.tasks.find(t => t.id === id);
+        if (!task) return;
+
+        const card = document.getElementById(`task-card-${id}`);
+        if (card && !task.completed) {
+          card.classList.add('task-card-joyous');
+          setTimeout(() => {
+            this.toggleComplete(id);
+          }, 550);
+        } else {
+          this.toggleComplete(id);
+        }
+      }
+
+      toggleComplete(id) {
+        const task = this.tasks.find(t => t.id === id);
+        if (task) {
+          task.completed = !task.completed;
+          task.completedAt = task.completed ? Date.now() : null;
           this.saveState();
         }
       }
